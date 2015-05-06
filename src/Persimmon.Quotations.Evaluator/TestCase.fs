@@ -37,7 +37,7 @@ module internal ExpressionHelper =
     let registerParameter (recorder: ConcurrentDictionary<TestCaseTree, obj>) (expr: ParameterExpression) =
         let arg = Parameter(expr.Name, expr.Type)
         let inner (value: obj) = recorder.GetOrAdd(arg, value) |> ignore
-        let func = Func<obj, _>(inner) 
+        let func = Func<obj, _>(inner)
         let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
         (arg, Expression.Call(Expression.Constant(func.Target), func.Method, args))
 
@@ -46,7 +46,7 @@ module internal ExpressionHelper =
         |> List.foldBack (fun x (xs, body) ->
             let x, f = registerParameter recorder x
             (x::xs, Expression.Block(f, body) :> Expression))
-        <| ([], body)     
+        <| ([], body)
 
     let private registerAndReturn (recorder: ConcurrentDictionary<TestCaseTree, obj>) key expr typ =
         let inner (value: obj) = recorder.GetOrAdd(key, value)

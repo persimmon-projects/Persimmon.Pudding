@@ -36,8 +36,8 @@ module Quotations =
   ]
 
   let internal genMethodCallMessage (builder: StringBuilder) (values: ConcurrentDictionary<TestCaseTree, obj>) =
- 
-    let formatArguments args = 
+
+    let formatArguments args =
       args
       |> List.sortBy (function
       | Argument(_, _, i) -> i

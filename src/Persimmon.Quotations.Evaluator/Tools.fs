@@ -13,7 +13,7 @@ let rec getExpressionFromTuple (tuple:Expression) idx =
 let createTuple<'a> types =
     let tuple = typedefof<'a>.MakeGenericType types
     let ``constructor`` = tuple.GetConstructor types
-    let callConstructor (x:seq<Expression>) = 
+    let callConstructor (x:seq<Expression>) =
         Expression.New (``constructor``, x) :> Expression
     tuple, callConstructor
 
@@ -37,22 +37,22 @@ let rec createGenericTupleType types =
         let ``constructor`` = tuple.GetConstructor sliceTypes
         let callConstructor (x:seq<Expression>) =
             let args = [|
-                yield! Seq.take 7 x 
+                yield! Seq.take 7 x
                 yield create (Seq.skip 7 x) |]
             Expression.New(``constructor``, args) :> Expression
         tuple, callConstructor
 
-let getFuncType (args:Type[])  = 
-    if args.Length <= 17 then 
+let getFuncType (args:Type[])  =
+    if args.Length <= 17 then
         Expression.GetFuncType args
     else
-        match args.Length with 
+        match args.Length with
         | 18 -> typedefof<FuncHelper<_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_>>.MakeGenericType args
         | 19 -> typedefof<FuncHelper<_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_>>.MakeGenericType args
         | 20 -> typedefof<FuncHelper<_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_>>.MakeGenericType args
         | 21 -> typedefof<FuncHelper<_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_>>.MakeGenericType args
         | _ -> raise <| NotSupportedException "Quotation expressions with statements or closures containing more then 20 free variables may not be translated in this release of the F# PowerPack. This is due to limitations in the variable binding expression forms available in LINQ expression trees"
-            
+
 type FuncFSharp<'state,'a> (f:Func<'state,'a>) =
     inherit FSharpFunc<unit, 'a>()
     [<Core.DefaultValue false>] val mutable State : 'state

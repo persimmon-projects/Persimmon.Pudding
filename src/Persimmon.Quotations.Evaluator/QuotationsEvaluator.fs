@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation 2005-2008.
-// This sample code is provided "as is" without warranty of any kind. 
-// We disclaim all warranties, either express or implied, including the 
-// warranties of merchantability and fitness for a particular purpose. 
+// This sample code is provided "as is" without warranty of any kind.
+// We disclaim all warranties, either express or implied, including the
+// warranties of merchantability and fitness for a particular purpose.
 
 namespace Persimmon.Quotations.Evaluator
 
@@ -22,11 +22,11 @@ open Microsoft.FSharp.Linq.RuntimeHelpers
 module ExtraHashCompare =
     let GenericNotEqualIntrinsic<'T> (x:'T) (y:'T) : bool = not (Microsoft.FSharp.Core.LanguagePrimitives.HashCompare.GenericEqualityIntrinsic<'T> x y)
 
-module QuotationEvaluationTypes = 
+module QuotationEvaluationTypes =
     open HelperTypes
     open Tools
 
-    type This = 
+    type This =
         static member Assembly = typeof<This>.Assembly
 
     let hashCompareType      = typeof<list<_>>.Assembly.GetType("Microsoft.FSharp.Core.LanguagePrimitives+HashCompare")
@@ -53,16 +53,16 @@ module QuotationEvaluationTypes =
     let asExpr x = AsExpression x
     let asExpression x = (x :> Expression)
 
-    let getFunctionType typ = 
+    let getFunctionType typ =
         let isFunctionType typ =
-            let equivHeadTypes (ty1:Type) (ty2:Type) = 
+            let equivHeadTypes (ty1:Type) (ty2:Type) =
                 let isNamedType (typ:Type) =
                     not (typ.IsArray || typ.IsByRef || typ.IsPointer)
-    
+
                 isNamedType(ty1) &&
-                    if ty1.IsGenericType then 
+                    if ty1.IsGenericType then
                       ty2.IsGenericType && (ty1.GetGenericTypeDefinition()).Equals(ty2.GetGenericTypeDefinition())
-                    else 
+                    else
                       ty1.Equals(ty2)
 
             equivHeadTypes typ (typeof<(int->int)>)
@@ -73,12 +73,12 @@ module QuotationEvaluationTypes =
         let tyargs = typ.GetGenericArguments()
         tyargs.[0], tyargs.[1]
 
-    let ArrayAssignHelper (arr : 'T[]) (idx:int) (elem:'T) : 'unt = 
+    let ArrayAssignHelper (arr : 'T[]) (idx:int) (elem:'T) : 'unt =
         arr.[idx] <- elem;
         unbox (box ())
 
-    let TryWithHelper e filter handler = 
-        try e() 
+    let TryWithHelper e filter handler =
+        try e()
         with e when (filter e <> 0) -> handler e
 
     let ArrayAssignMethod = match <@@ ArrayAssignHelper @@> with Lambdas(_,Call(_,minfo,_)) -> minfo | _ -> failwith "couldn't find minfo"
@@ -87,12 +87,12 @@ module QuotationEvaluationTypes =
     let IsVoidType (ty:System.Type)  = (ty = typeof<System.Void>)
 
     let LinqExpressionHelper (_:'T) : Expression<'T> = failwith ""
-    
-    let showAll = BindingFlags.Public ||| BindingFlags.NonPublic 
+
+    let showAll = BindingFlags.Public ||| BindingFlags.NonPublic
 
     let wrapVoid (e:#Expression) =
         if e.Type <> typeof<System.Void> then e |> asExpr
-        else 
+        else
             Expression.Block(
                 e,
                 Expression.Constant(null, typeof<Unit>)) |> asExpr
@@ -100,7 +100,7 @@ module QuotationEvaluationTypes =
     let (|Λ|_|) (``method``:MethodInfo) = function
     | Patterns.Call (o, methodInfo, args) when methodInfo.Name = ``method``.Name ->
         if methodInfo.IsGenericMethod then
-            let generic = methodInfo.GetGenericMethodDefinition() 
+            let generic = methodInfo.GetGenericMethodDefinition()
             if ``method`` = generic then
                 let genericArgs = methodInfo.GetGenericArguments ()
                 Some (o, genericArgs, args)
@@ -114,23 +114,23 @@ module QuotationEvaluationTypes =
     let ``-> linqExpressionHelper`` = getGenericMethodInfo <@ LinqExpressionHelper @>
 
     let (|ArrayTypeQ|_|) (ty:System.Type) = if ty.IsArray && ty.GetArrayRank() = 1 then Some(ty.GetElementType()) else None
-    
+
     /// Convert F# quotations to LINQ expression trees.
-    let rec ConvExpr (env:ConvEnv) (inp:Expr) = 
+    let rec ConvExpr (env:ConvEnv) (inp:Expr) =
         match LetRecConvExpr env None inp with
         | AsExpression expr -> expr
         | _ -> failwith "Invalid logic"
-    and LetRecConvExpr (env:ConvEnv) (letrec:option<Var>) (inp:Expr) = 
+    and LetRecConvExpr (env:ConvEnv) (letrec:option<Var>) (inp:Expr) =
        //printf "ConvExpr : %A\n" e;
-        match inp with 
+        match inp with
 
-        // Generic cases 
+        // Generic cases
         | Patterns.Var(v) ->
                 try
                     Map.find v env.varEnv |> asExpr
                 with
                 |   :? KeyNotFoundException when v.Name = "this" ->
-                        let message = 
+                        let message =
                             "Encountered unxpected variable named 'this'. This might happen because " +
                             "quotations used in queries can’t contain references to let-bound values in classes unless the quotation literal occurs in an instance member. " +
                             "If this is the case, workaround by replacing references to implicit fields with references to " +
@@ -151,27 +151,27 @@ module QuotationEvaluationTypes =
         // REVIEW: exact F# semantics for TypeAs and TypeIs
         | Patterns.Coerce(x,toTy)             -> Expression.TypeAs(ConvExpr env x,toTy) |> asExpr
         | Patterns.TypeTest(x,toTy)           -> Expression.TypeIs(ConvExpr env x,toTy) |> asExpr
-        
+
         // Expr.*Get
         | Patterns.FieldGet(objOpt,fieldInfo) -> Expression.Field(ConvObjArg env objOpt None, fieldInfo) |> asExpr
 
         | Patterns.TupleGet(arg,n) ->
-             let argP = ConvExpr env arg 
-             let rec build ty argP n = 
-                 match Reflection.FSharpValue.PreComputeTuplePropertyInfo(ty,n) with 
-                 | propInfo,None -> 
+             let argP = ConvExpr env arg
+             let rec build ty argP n =
+                 match Reflection.FSharpValue.PreComputeTuplePropertyInfo(ty,n) with
+                 | propInfo,None ->
                      Expression.Property(argP, propInfo)  |> asExpr
-                 | propInfo,Some(nestedTy,n2) -> 
+                 | propInfo,Some(nestedTy,n2) ->
                      build nestedTy (Expression.Property(argP,propInfo) |> asExpression) n2
              build arg.Type argP n
-              
+
         | Patterns.PropertyGet(objOpt,propInfo,args) ->
-            let coerceTo = 
-                if objOpt.IsSome && FSharpType.IsUnion propInfo.DeclaringType && FSharpType.IsUnion propInfo.DeclaringType.BaseType  then  
+            let coerceTo =
+                if objOpt.IsSome && FSharpType.IsUnion propInfo.DeclaringType && FSharpType.IsUnion propInfo.DeclaringType.BaseType  then
                     Some propInfo.DeclaringType
-                else 
+                else
                     None
-            match args with 
+            match args with
             | [] ->
                 Expression.Property(ConvObjArg env objOpt coerceTo, propInfo) |> asExpr
             | _ ->
@@ -181,7 +181,7 @@ module QuotationEvaluationTypes =
         // Expr.*Set
         | Patterns.PropertySet(objOpt,propInfo,args,v) ->
             let args = (args @ [v])
-            let argsP = ConvExprs env args 
+            let argsP = ConvExprs env args
             let minfo = propInfo.GetSetMethod(true)
             Expression.Call(ConvObjArg env objOpt None, minfo,argsP) |> wrapVoid
 
@@ -207,10 +207,10 @@ module QuotationEvaluationTypes =
 
                 if e1.Type.IsPrimitive || env.eraseEquality then
                     exprErasedConstructor(e1,e2) |> asExpr
-                else 
+                else
                     exprConstructor(e1, e2, false, intrinsic.MakeGenericMethod([|x1.Type|])) |> asExpr
 
-            match inp with 
+            match inp with
             | Λ ``-> generic=`` (_,_,[x1;x2])
             | Λ ``-> =``  (_,_,[x1;x2]) -> transComparison x1 x2 Expression.Equal              Expression.Equal              genericEqualityIntrinsic
             | Λ ``-> >``  (_,_,[x1;x2]) -> transComparison x1 x2 Expression.GreaterThan        Expression.GreaterThan        genericGreaterThanIntrinsic
@@ -241,7 +241,7 @@ module QuotationEvaluationTypes =
             | Λ ``-> checked+``  (_,_,[x1;x2]) -> binary x1 x2 Expression.AddChecked
             | Λ ``-> checked-``  (_,_,[x1;x2]) -> binary x1 x2 Expression.SubtractChecked
             | Λ ``-> checked*``  (_,_,[x1;x2]) -> binary x1 x2 Expression.MultiplyChecked
-             
+
             | Λ ``-> char``    (_,_,[x1]) -> convertOrParse x1 typeof<char> parseCharExpr
             | Λ ``-> decimal`` (_,_,[x1]) -> convertOrParse x1 typeof<decimal> parseDecimalExpr
             | Λ ``-> float``   (_,_,[x1]) -> convertOrParse x1 typeof<float> parseDoubleExpr
@@ -274,11 +274,11 @@ module QuotationEvaluationTypes =
             | Λ ``-> setArray``  (_, [|ArrayTypeQ(elemTy);_;_|],[arr;idx;elem]) ->
                 let minfo = ArrayAssignMethod.GetGenericMethodDefinition().MakeGenericMethod [| elemTy;typeof<unit> |]
                 Expression.Call(minfo,[| ConvExpr env arr; ConvExpr env idx; ConvExpr env elem |]) |> asExpr
-            
+
             // Throw away markers inserted to satisfy C#'s design where they pass an argument
             // or type T to an argument expecting Expr<T>.
             | Λ ``-> linqExpressionHelper`` (_, [|_|],[x1]) -> LetRecConvExpr env letrec x1
-             
+
               /// ArrayLength
               /// ListBind
               /// ListInit
@@ -296,7 +296,7 @@ module QuotationEvaluationTypes =
             let domainTy3, rangeTy = getFunctionType rangeTy
             let domainTy4, rangeTy = getFunctionType rangeTy
             let (-->) ty1 ty2 = Reflection.FSharpType.MakeFunctionType(ty1,ty2)
-            let ty = domainTy1 --> domainTy2 
+            let ty = domainTy1 --> domainTy2
             let meth = (ty.GetMethods() |> Array.find (fun minfo -> minfo.Name = "InvokeFast" && minfo.GetParameters().Length = 5)).MakeGenericMethod [| domainTy3; domainTy4; rangeTy |]
             let argsP = ConvExprs env [f; arg1;arg2;arg3; arg4]
             Expression.Call((null:Expression), meth, argsP) |> asExpr
@@ -307,7 +307,7 @@ module QuotationEvaluationTypes =
             let domainTy2, rangeTy = getFunctionType rangeTy
             let domainTy3, rangeTy = getFunctionType rangeTy
             let (-->) ty1 ty2 = Reflection.FSharpType.MakeFunctionType(ty1,ty2)
-            let ty = domainTy1 --> domainTy2 
+            let ty = domainTy1 --> domainTy2
             let meth = (ty.GetMethods() |> Array.find (fun minfo -> minfo.Name = "InvokeFast" && minfo.GetParameters().Length = 4)).MakeGenericMethod [| domainTy3; rangeTy |]
             let argsP = ConvExprs env [f; arg1;arg2;arg3]
             Expression.Call((null:Expression), meth, argsP) |> asExpr
@@ -317,7 +317,7 @@ module QuotationEvaluationTypes =
             let domainTy1, rangeTy = getFunctionType f.Type
             let domainTy2, rangeTy = getFunctionType rangeTy
             let (-->) ty1 ty2 = Reflection.FSharpType.MakeFunctionType(ty1,ty2)
-            let ty = domainTy1 --> domainTy2 
+            let ty = domainTy1 --> domainTy2
             let meth = (ty.GetMethods() |> Array.find (fun minfo -> minfo.Name = "InvokeFast" && minfo.GetParameters().Length = 3)).MakeGenericMethod [| rangeTy |]
             let argsP = ConvExprs env [f; arg1;arg2]
             Expression.Call((null:Expression), meth, argsP) |> asExpr
@@ -331,7 +331,7 @@ module QuotationEvaluationTypes =
 
         // Expr.New*
         | Patterns.NewRecord(recdTy,args) ->
-            let ctorInfo = Reflection.FSharpValue.PreComputeRecordConstructorInfo(recdTy,showAll) 
+            let ctorInfo = Reflection.FSharpValue.PreComputeRecordConstructorInfo(recdTy,showAll)
             Expression.New(ctorInfo,ConvExprs env args) |> asExpr
 
         | Patterns.NewArray(ty,args) ->
@@ -342,14 +342,14 @@ module QuotationEvaluationTypes =
 
         | Patterns.NewUnionCase(unionCaseInfo,args) ->
             let methInfo = Reflection.FSharpValue.PreComputeUnionConstructorInfo(unionCaseInfo,showAll)
-            let argsR = ConvExprs env args 
+            let argsR = ConvExprs env args
             Expression.Call((null:Expression),methInfo,argsR) |> asExpr
 
         | Patterns.UnionCaseTest(e,unionCaseInfo) ->
             let methInfo = Reflection.FSharpValue.PreComputeUnionTagMemberInfo(unionCaseInfo.DeclaringType,showAll)
-            let obj = ConvExpr env e 
-            let tagE = 
-                match methInfo with 
+            let obj = ConvExpr env e
+            let tagE =
+                match methInfo with
                 | :? PropertyInfo as p ->
                     Expression.Property(obj,p) |> asExpression
                 | :? MethodInfo as m ->
@@ -361,18 +361,18 @@ module QuotationEvaluationTypes =
             Expression.New(ctorInfo,ConvExprs env args) |> asExpr
 
         | Patterns.NewDelegate(dty,vs,b) ->
-            let vsP = List.map ConvVar vs 
+            let vsP = List.map ConvVar vs
             let env = { env with varEnv = List.foldBack2 (fun (v:Var) vP -> Map.add v (vP |> asExpression)) vs vsP env.varEnv }
             let bodyP = ConvExpr env b
-            Expression.Lambda(dty, bodyP, vsP) |> asExpr 
+            Expression.Lambda(dty, bodyP, vsP) |> asExpr
 
         | Patterns.NewTuple(args) ->
              let tupTy = args |> List.map (fun arg -> arg.Type) |> Array.ofList |> Reflection.FSharpType.MakeTupleType
-             let argsP = ConvExprs env args 
-             let rec build ty (argsP: Expression[]) = 
-                 match Reflection.FSharpValue.PreComputeTupleConstructorInfo(ty) with 
-                 | ctorInfo,None -> Expression.New(ctorInfo,argsP) |> asExpression 
-                 | ctorInfo,Some(nestedTy) -> 
+             let argsP = ConvExprs env args
+             let rec build ty (argsP: Expression[]) =
+                 match Reflection.FSharpValue.PreComputeTupleConstructorInfo(ty) with
+                 | ctorInfo,None -> Expression.New(ctorInfo,argsP) |> asExpression
+                 | ctorInfo,Some(nestedTy) ->
                      let n = ctorInfo.GetParameters().Length - 1
                      Expression.New(ctorInfo, Array.append argsP.[0..n-1] [| build nestedTy argsP.[n..] |]) |> asExpression
              build tupTy argsP |> asExpr
@@ -392,7 +392,7 @@ module QuotationEvaluationTypes =
             let eP = ConvExpr env e
             let assign = Expression.Assign (vP, eP) |> asExpression
 
-            let env = { env with varEnv = env.varEnv |> Map.add v (vP |> asExpression) } 
+            let env = { env with varEnv = env.varEnv |> Map.add v (vP |> asExpression) }
             let bodyP =
               ((ConvExpr env b), [vP])
               ||> ExpressionHelper.addRegisterParameterExpressions env.registeredValues
@@ -469,7 +469,7 @@ module QuotationEvaluationTypes =
                 let linqBody = ConvExpr lambdaEnv body
 
                 let varParameterExprs = varParameters |> List.map snd
-                let parameters = 
+                let parameters =
                     [ yield stateParameter
                       yield! varParameterExprs ]
 
@@ -484,7 +484,7 @@ module QuotationEvaluationTypes =
                 let linqLambda = Expression.Lambda (getFuncType funcTypes, linqBody, parameters)
 
                 let ``function`` = linqLambda.Compile ()
-              
+
                 let funcFSharp =
                     getFuncFSharpTypedef argsCount
 
@@ -492,7 +492,7 @@ module QuotationEvaluationTypes =
                     [|  yield stateType
                         yield! varParameters |> List.map (fun (vars,_) -> vars.Type)
                         yield linqBody.Type |]
-                  
+
                 let ``type`` = funcFSharp.MakeGenericType parameterTypes
 
                 let ``constructor`` = ``type``.GetConstructor [| ``function``.GetType () |]
@@ -504,7 +504,7 @@ module QuotationEvaluationTypes =
                     let obj = ``constructor``.Invoke [| ``function`` |]
                     Expression.Constant obj |> asExpr
                 | _ ->
-                    let newObject = 
+                    let newObject =
                         Expression.New (
                             ``constructor``,
                             [Expression.Constant(``function``) |> asExpression])
@@ -527,7 +527,7 @@ module QuotationEvaluationTypes =
                             theFuncObject,
                             newObject) |> asExpression;
 
-                    let assignState = 
+                    let assignState =
                         Expression.Assign(
                             Expression.PropertyOrField(theFuncObject, "State"),
                             state) |> asExpression;
@@ -542,7 +542,7 @@ module QuotationEvaluationTypes =
                                 assignState;
                                 theFuncObject |> asExpression
                             ]) |> asExpr
-    
+
         | Patterns.WhileLoop(condition, iteration) ->
             let linqCondition = ConvExpr env condition
             let linqIteration = ConvExpr env iteration
@@ -556,7 +556,7 @@ module QuotationEvaluationTypes =
                             linqIteration,
                             Expression.Break breakLabel)),
                     breakLabel)
-            
+
             linqLoop |> wrapVoid
 
         | Patterns.ForIntegerRangeLoop(indexer, lowerValue, upperValue, iteration) ->
@@ -565,10 +565,10 @@ module QuotationEvaluationTypes =
             let linqIndexer = Expression.Variable (linqLowerValue.Type, indexer.Name)
             let linqAssignLower = Expression.Assign (linqIndexer, linqLowerValue)
             let linqCondition = Expression.LessThanOrEqual (linqIndexer, linqUpperValue)
-            
+
             let envInner = { env with varEnv = Map.add indexer (linqIndexer |> asExpression) env.varEnv }
 
-            let linqIteration = 
+            let linqIteration =
                 Expression.Block (
                     ConvExpr envInner iteration,
                     Expression.Assign(linqIndexer, Expression.Increment (linqIndexer)))
@@ -590,12 +590,12 @@ module QuotationEvaluationTypes =
                 )
 
             linqStatements |> asExpr
-        
+
         | Patterns.TryFinally(e,h) ->
             let eP = ConvExpr env e
             let hP = ConvExpr env h
             Expression.TryFinally(eP, hP) |> asExpr
-        
+
         | Patterns.TryWith(e,vf,filter,vh,handler) ->
             let eP = ConvExpr env (Expr.Lambda(new Var("unitVar",typeof<unit>), e))
             let filterP = ConvExpr env (Expr.Lambda(vf,filter))
@@ -655,7 +655,7 @@ module QuotationEvaluationTypes =
                 recursiveFunctionBindings
                 |> List.map (fun (vP, funcObject, _,_) ->
                     Expression.Assign (vP, funcObject) |> asExpression)
-                
+
             let assignState =
                 recursiveFunctionBindings
                 |> List.map (fun (_,_,_, assignState) -> assignState)
@@ -679,18 +679,18 @@ module QuotationEvaluationTypes =
         | _ ->
             raise <| new NotSupportedException(sprintf "Could not convert the following F# Quotation to a LINQ Expression Tree\n--------\n%A\n-------------\n" inp)
 
-    and ConvObjArg env objOpt coerceTo : Expression = 
+    and ConvObjArg env objOpt coerceTo : Expression =
         match objOpt with
         | Some(obj) ->
             let expr = ConvExpr env obj
-            match coerceTo with 
+            match coerceTo with
             | None -> expr
             | Some ty -> Expression.TypeAs(expr, ty) :> Expression
         | None ->
             null
 
     and ConvExprs env es : Expression[] =
-        es |> List.map (ConvExpr env) |> Array.ofList 
+        es |> List.map (ConvExpr env) |> Array.ofList
 
     and ConvVar (v: Var) =
         //printf "** Expression .Parameter(%a, %a)\n" output_any ty output_any nm;
@@ -720,7 +720,7 @@ module QuotationEvaluationTypes =
         let rec getStrings strings = function
         | Λ ``-> +`` (None, [|t1;_;_|], [x1;x2]) when t1 = typeof<string> -> getStrings (x2::strings) (x1)
         | remainder -> remainder :: strings
-        let concat = 
+        let concat =
             match getStrings [x2] (x1) with
             | s1::s2::[]         -> <@@ String.Concat(%%s1, %%s2) @@>
             | s1::s2::s3::[]     -> <@@ String.Concat(%%s1, %%s2, %%s3) @@>
@@ -756,13 +756,13 @@ module QuotationEvaluationExtensions =
     open QuotationEvaluationTypes
 
     type Microsoft.FSharp.Quotations.Expr<'T> with
-        member x.Compile() = 
-            let vs, f = Compile(x)  
+        member x.Compile() =
+            let vs, f = Compile(x)
             (vs, fun () -> f() :?> 'T)
-  
+
 open QuotationEvaluationTypes
 open QuotationEvaluationExtensions
-  
+
 [<Sealed>]
-type QuotationEvaluator() = 
+type QuotationEvaluator() =
     static member Compile(e : Microsoft.FSharp.Quotations.Expr<'T>) = e.Compile()
