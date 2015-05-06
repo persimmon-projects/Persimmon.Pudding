@@ -24,6 +24,11 @@ module QuotationsTest =
  Parameters = [];})
   assertEquals(2, 1) -> NotPassed (Violated "Expect: 2
 Actual: 1")
+[lambda expression]
+  fun () -> TestCase<Int32>({Name = "";
+ Parameters = [];})
+  fun 1 -> TestCase<Int32>({Name = "";
+ Parameters = [];})
 """
     let msg2 = "Expect: 2\nActual: 1"
     test {

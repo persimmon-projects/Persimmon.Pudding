@@ -8,7 +8,7 @@ open System.Linq.Expressions
 [<StructuredFormatDisplay("{ToStr}")>]
 type TestCaseTree =
     | Parameter of string * Type
-    | LambdaExpr of TestCaseTree list * TestCaseTree
+    | LambdaExpr of TestCaseTree list * Type
     | Argument of TestCaseTree option * MethodInfo * int
     | MethodCall of TestCaseTree option * MethodInfo * TestCaseTree list
     | Value of obj
@@ -16,14 +16,14 @@ with
     member this.ToStr =
         match this with
         | Parameter(name, typ) -> sprintf "%s: %s" name typ.FullName
-        | LambdaExpr(prms, body) ->
+        | LambdaExpr(prms, typ) ->
             prms
             |> List.map (sprintf "(%A)")
             |> String.concat " "
             |> sprintf "fun %s ->%s%A" Environment.NewLine
-            <| string body
+            <| typ.FullName
         | Argument _ -> "" // dummy value
-        | MethodCall(instance, info, args) ->
+        | MethodCall(instance, info, _) ->
             let instance =
                 match instance with
                 | Some v -> v.ToStr + "."
@@ -35,37 +35,36 @@ with
 module internal ExpressionHelper =
 
     let registerParameter (recorder: ConcurrentDictionary<TestCaseTree, obj>) (expr: ParameterExpression) =
-        let inner (value: obj) = recorder.GetOrAdd(Parameter(expr.Name, expr.Type), value) |> ignore
+        let arg = Parameter(expr.Name, expr.Type)
+        let inner (value: obj) = recorder.GetOrAdd(arg, value) |> ignore
         let func = Func<obj, _>(inner) 
         let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
-        Expression.Call(Expression.Constant(func.Target), func.Method, args)
+        (arg, Expression.Call(Expression.Constant(func.Target), func.Method, args))
 
     let addRegisterParameterExpressions recorder body parameters =
         parameters
-        |> List.foldBack (fun x body ->
-            Expression.Block(registerParameter recorder x, body)
-            :> Expression)
-        <| body
+        |> List.foldBack (fun x (xs, body) ->
+            let x, f = registerParameter recorder x
+            (x::xs, Expression.Block(f, body) :> Expression))
+        <| ([], body)     
 
-    let registerArgument (recorder: ConcurrentDictionary<TestCaseTree, obj>) instance info index expr =
+    let private registerAndReturn (recorder: ConcurrentDictionary<TestCaseTree, obj>) key expr typ =
+        let inner (value: obj) = recorder.GetOrAdd(key, value)
+        let func = Func<obj, _>(inner)
+        let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
+        let register = Expression.Call(Expression.Constant(func.Target), func.Method, args) :> Expression
+        Expression.Convert(register, typ) :> Expression
+
+    let addRegisterLambdaExpression recorder body parameters =
+        let prms, body = addRegisterParameterExpressions recorder body parameters
+        registerAndReturn recorder (LambdaExpr(prms, body.Type)) body body.Type
+
+    let registerArgument recorder instance info index expr =
         let arg = Argument(instance, info, index)
-        let inner (value: obj) =
-            recorder.GetOrAdd(arg, value) |> ignore
-            value
-        let func = Func<obj, obj>(inner) 
-        let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
-        let register = Expression.Call(Expression.Constant(func.Target), func.Method, args) :> Expression
-        let ret = Expression.Convert(register, info.GetParameters().[index].ParameterType) :> Expression
-        (arg, ret)
+        (arg, registerAndReturn recorder arg expr (info.GetParameters().[index].ParameterType))
 
-    let registerResult (recorder: ConcurrentDictionary<TestCaseTree, obj>) instance info args expr =
-        let inner (value: obj) =
-            recorder.GetOrAdd(MethodCall(instance, info, args), box value) |> ignore
-            value
-        let func = Func<obj, obj>(inner) 
-        let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
-        let register = Expression.Call(Expression.Constant(func.Target), func.Method, args) :> Expression
-        Expression.Convert(register, info.ReturnType) :> Expression
+    let registerResult recorder instance info args expr =
+        registerAndReturn recorder (MethodCall(instance, info, args)) expr info.ReturnType
 
     let callAndRegisterResult recorder (instance: Expression) info args =
         let instanceTree =

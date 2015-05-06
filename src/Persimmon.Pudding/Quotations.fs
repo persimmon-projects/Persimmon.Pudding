@@ -36,6 +36,18 @@ module Quotations =
   ]
 
   let internal genMethodCallMessage (builder: StringBuilder) (values: ConcurrentDictionary<TestCaseTree, obj>) =
+ 
+    let formatArguments args = 
+      args
+      |> List.sortBy (function
+      | Argument(_, _, i) -> i
+      | _ -> failwith "oops!") // TODO: improve message
+      |> List.map (fun x ->
+        match values.TryGetValue(x) with
+        | true, o -> string o
+        | false, _ -> "oops!")
+      |> String.concat ", "
+
     let calls =
       values
       |> Seq.filter (fun (KeyValue(k, _)) ->
@@ -43,22 +55,45 @@ module Quotations =
         | MethodCall(_, info, _) when ignoreMethodNames |> List.exists ((=) info.Name) -> false
         | MethodCall _ -> true
         | _ -> false)
+
     if not <| Seq.isEmpty calls then builder.AppendLine("[method call]") |> ignore
+
     calls
     |> Seq.iter (fun (KeyValue(k, v)) ->
       match k with
       | MethodCall(_, _, args) ->
+        Printf.bprintf builder "  %A(%s) -> %A%s" k (formatArguments args) v Environment.NewLine
+      | _ -> ())
+
+  let internal genLambdaMessage (builder: StringBuilder) (values: ConcurrentDictionary<TestCaseTree, obj>) =
+
+    let formatParameter = function
+    | Parameter(_, typ) as x ->
+      match values.TryGetValue(x) with
+      | true, _ when typ = typeof<unit> -> "()"
+      | true, _ when typ.FullName.StartsWith("Microsoft.FSharp.Core.FSharpOption`1") -> "None"
+      | true, o -> string o
+      | false, _ -> failwith "oops!"
+    | _ -> failwith "oops!"
+
+    let lambdas =
+      values
+      |> Seq.filter (fun (KeyValue(k, _)) ->
+        match k with
+        | LambdaExpr _ -> true
+        | _ -> false)
+
+    if not <| Seq.isEmpty lambdas then builder.AppendLine("[lambda expression]") |> ignore
+
+    lambdas
+    |> Seq.iter (fun (KeyValue(k, v)) ->
+      match k with
+      | LambdaExpr(args, _) ->
         let args =
           args
-          |> List.sortBy (function
-            | Argument(_, _, i) -> i
-            | _ -> failwith "oops!") // TODO: improve message
-          |> List.map (fun x ->
-            match values.TryGetValue(x) with
-            | true, o -> string o
-            | false, _ -> "oops!")
-          |> String.concat ", "
-        Printf.bprintf builder "  %A(%s) -> %A%s" k args v Environment.NewLine
+          |> List.map formatParameter
+          |> String.concat " "
+        Printf.bprintf builder "  fun %s -> %A%s" args v Environment.NewLine
       | _ -> ())
 
   type TestBuilder with
@@ -74,6 +109,7 @@ module Quotations =
             let builder = StringBuilder()
             genParameterMessages builder vs
             genMethodCallMessage builder vs
+            genLambdaMessage builder vs
             let msg = builder.ToString()
             if msg = "" then res
             else res |> TestResult.addAssertionResult (NotPassed (Violated msg))

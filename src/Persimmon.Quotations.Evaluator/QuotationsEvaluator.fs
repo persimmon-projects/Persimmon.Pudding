@@ -396,6 +396,7 @@ module QuotationEvaluationTypes =
             let bodyP =
               ((ConvExpr env b), [vP])
               ||> ExpressionHelper.addRegisterParameterExpressions env.registeredValues
+              |> snd
 
             Expression.Block ([vP], [assign; bodyP]) |> asExpr
 
@@ -478,7 +479,7 @@ module QuotationEvaluationTypes =
 
                 let linqBody =
                   varParameterExprs
-                  |> ExpressionHelper.addRegisterParameterExpressions env.registeredValues linqBody
+                  |> ExpressionHelper.addRegisterLambdaExpression env.registeredValues linqBody
 
                 let linqLambda = Expression.Lambda (getFuncType funcTypes, linqBody, parameters)
 
