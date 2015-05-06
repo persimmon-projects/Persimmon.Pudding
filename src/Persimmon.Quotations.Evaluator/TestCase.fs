@@ -48,10 +48,17 @@ module internal ExpressionHelper =
             (x::xs, Expression.Block(f, body) :> Expression))
         <| ([], body)
 
+    let wrapVoid (e:#Expression) =
+        if e.Type <> typeof<System.Void> then e :> Expression
+        else Expression.Block(e, Expression.Constant(null, typeof<Unit>)) :> Expression
+
     let private registerAndReturn (recorder: ConcurrentDictionary<TestCaseTree, obj>) key expr typ =
+        let typ =
+          if typ <> typeof<System.Void> then typ
+          else typeof<unit>
         let inner (value: obj) = recorder.GetOrAdd(key, value)
         let func = Func<obj, _>(inner)
-        let args = [| Expression.Convert(expr, typeof<obj>) :> Expression |]
+        let args = [| Expression.Convert(wrapVoid expr, typeof<obj>) :> Expression |]
         let register = Expression.Call(Expression.Constant(func.Target), func.Method, args) :> Expression
         Expression.Convert(register, typ) :> Expression
 
