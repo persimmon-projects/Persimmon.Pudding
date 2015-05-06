@@ -17,11 +17,11 @@ with
         match this with
         | Parameter(name, typ) -> sprintf "%s: %s" name typ.FullName
         | LambdaExpr(prms, typ) ->
-            prms
-            |> List.map (sprintf "(%A)")
-            |> String.concat " "
-            |> sprintf "fun %s ->%s%A" Environment.NewLine
-            <| typ.FullName
+            let prms =
+                prms
+                |> List.map (sprintf "(%A)")
+                |> String.concat " "
+            sprintf "fun %s -> %s" prms typ.FullName
         | Argument _ -> "" // dummy value
         | MethodCall(instance, info, _) ->
             let instance =
