@@ -16,4 +16,4 @@ configuration:
 
 test_script:
   - .\.nuget\NuGet.exe Install Persimmon.Console -Pre -OutputDirectory packages -ExcludeVersion
-  - ps: .\packages\Persimmon.Console\tools\Persimmon.Console.exe --parallel .\tests\Persimmon.Pudding.Tests\bin\$env:configuration\Persimmon.Pudding.Tests.dll
+  - ps: .\packages\Persimmon.Console\tools\Persimmon.Console.exe --parallel .\tests\Persimmon.Pudding.Tests\bin\$env:configuration\Persimmon.Pudding.Tests.dll ./tests/Persimmon.Quotations.Evaluator.Tests/bin/$env:configuration/Persimmon.Quotations.Evaluator.Tests.dll
