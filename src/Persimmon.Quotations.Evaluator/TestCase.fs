@@ -56,7 +56,9 @@ module internal ExpressionHelper =
         let typ =
           if typ <> typeof<System.Void> then typ
           else typeof<unit>
-        let inner (value: obj) = recorder.GetOrAdd(key, value)
+        let inner (value: obj) =
+          recorder.GetOrAdd(key, value) |> ignore
+          value
         let func = Func<obj, _>(inner)
         let args = [| Expression.Convert(wrapVoid expr, typeof<obj>) :> Expression |]
         let register = Expression.Call(Expression.Constant(func.Target), func.Method, args) :> Expression
