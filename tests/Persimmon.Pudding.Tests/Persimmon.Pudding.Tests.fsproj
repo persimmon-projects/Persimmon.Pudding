@@ -59,10 +59,10 @@
     <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
   </Target>
   <ItemGroup>
-    <Content Include="packages.config" />
     <Content Include="app.config" />
     <Compile Include="Helper.fs" />
     <Compile Include="QuotationsTest.fs" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
@@ -70,7 +70,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Persimmon">
-      <HintPath>..\..\packages\Persimmon.1.0.0-beta5\lib\net20\Persimmon.dll</HintPath>
+      <HintPath>..\..\packages\Persimmon.1.0.0-beta6\lib\net20\Persimmon.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
