@@ -115,4 +115,4 @@ module Quotations =
             else res |> TestResult.addAssertionResult (NotPassed (Violated msg))
         TestCase(test.Name, test.Parameters, body)
       // TODO: get name value
-      with e -> TestCase.makeError "" [] e
+      with e -> TestCase.makeError None [] e

@@ -1,17 +1,17 @@
-﻿namespace global
-
+﻿namespace System
 open System.Reflection
-open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 
-[<assembly: AssemblyTitle("Persimmon.Quotations.Evaluator")>]
-[<assembly: AssemblyProduct("Persimmon.Quotations.Evaluator")>]
-[<assembly: Guid("BAEBE6A7-9146-4C6F-9695-463836E0870F")>]
-
-[<assembly: AssemblyVersion("1.0.0")>]
-[<assembly: AssemblyFileVersion("1.0.0")>]
-[<assembly: AssemblyInformationalVersion("1.0.0-beta1")>]
-
-[<assembly: InternalsVisibleTo("Persimmon.Quotations.Evaluator.Tests")>]
-
+[<assembly: AssemblyTitleAttribute("Persimmon.Quotations.Evaluator")>]
+[<assembly: AssemblyDescriptionAttribute("")>]
+[<assembly: GuidAttribute("BAEBE6A7-9146-4C6F-9695-463836E0870F")>]
+[<assembly: InternalsVisibleToAttribute("Persimmon.Quotations.Evaluator.Tests")>]
+[<assembly: AssemblyProductAttribute("Persimmon.Pudding")>]
+[<assembly: AssemblyVersionAttribute("0.1.0")>]
+[<assembly: AssemblyFileVersionAttribute("0.1.0")>]
+[<assembly: AssemblyInformationalVersionAttribute("0.1.0")>]
 do ()
+
+module internal AssemblyVersionInformation =
+    let [<Literal>] Version = "0.1.0"

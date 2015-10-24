@@ -7,9 +7,6 @@ mono:
   - 3.12.0
   - 3.10.0
 solution: Persimmon.Pudding.sln
-install:
-  - nuget install Persimmon.Console -Pre -OutputDirectory packages -ExcludeVersion
 script:
-  - xbuild ./Persimmon.Pudding.sln /p:Configuration=${CONFIGURATION}
-  - mono --runtime=v4.0 ./packages/Persimmon.Console/tools/Persimmon.Console.exe --parallel ./tests/Persimmon.Pudding.Tests/bin/${CONFIGURATION}/Persimmon.Pudding.Tests.dll ./tests/Persimmon.Quotations.Evaluator.Tests/bin/${CONFIGURATION}/Persimmon.Quotations.Evaluator.Tests.dll
+  - ./build.sh
 

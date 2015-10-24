@@ -20,15 +20,12 @@ module QuotationsTest =
   _arg2: Microsoft.FSharp.Core.Unit -> <null>
   a: System.Int32 -> 1
 [method call]
-  Persimmon.TestBuilder.Return(1) -> TestCase<Int32>({Name = "";
- Parameters = [];})
+  Persimmon.TestBuilder.Return(1) -> TestCase<Int32>()
   assertEquals(2, 1) -> NotPassed (Violated "Expect: 2
 Actual: 1")
 [lambda expression]
-  fun () -> TestCase<Int32>({Name = "";
- Parameters = [];})
-  fun 1 -> TestCase<Int32>({Name = "";
- Parameters = [];})
+  fun () -> TestCase<Int32>()
+  fun 1 -> TestCase<Int32>()
 """
     let msg2 = "Expect: 2\nActual: 1"
     test {
